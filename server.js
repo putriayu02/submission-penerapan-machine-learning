@@ -1,39 +1,36 @@
 const Hapi = require('@hapi/hapi');
-const predictHandler = require('./handlers/predictHandler');
+const predictionRoutes = require('./routes/predictionRoutes');
+const config = require('./config/tensorflowConfig');
+
+const server = Hapi.server({
+  port: process.env.PORT || 3000,
+  host: '0.0.0.0',
+  routes: {
+    payload: {
+      maxBytes: 1000000 // 1 MB limit
+    }
+  }
+});
 
 const init = async () => {
-    const server = Hapi.server({
-        port: 8080,
-        host: '0.0.0.0',
-        routes: {
-            cors: true,
-        },
-    });
+  try {
+    // Inisialisasi model TensorFlow
+    await config.loadModel();
 
-    // Routes
-    server.route([
-        {
-            method: 'POST',
-            path: '/predict',
-            options: {
-                payload: {
-                    output: 'stream',
-                    parse: true,
-                    multipart: true,
-                    maxBytes: 1000000, // 1MB
-                },
-            },
-            handler: predictHandler,
-        },
-    ]);
+    // Registrasi rute
+    server.route(predictionRoutes);
 
     await server.start();
     console.log(`Server running on ${server.info.uri}`);
+  } catch (error) {
+    console.error('Server initialization error:', error);
+    process.exit(1);
+  }
 };
 
 process.on('unhandledRejection', (err) => {
-    console.log(err);
-    process.exit(1);
+  console.error(err);
+  process.exit(1);
 });
 
 init();
